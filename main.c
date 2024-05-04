@@ -1,3 +1,4 @@
+#include "arrayList.h"
 #include "consts.h"
 #include "gapBuffer.h"
 #include "input.h"
@@ -9,6 +10,18 @@
 
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
+#define DEFAULT_FONT_SIZE 20
+#define DEFAULT_LINE_HEIGHT 20
+#define DEFAULT_CHAR_WIDTH 0.6 * DEFAULT_FONT_SIZE
+#define LEFT_PADDING 0
+#define BOTTOM_PADDING 0 
+
+typedef struct {
+    int fontSize;
+    int lineHeight;
+    int charWidth;
+
+} UserSettings;
 
 int Quit(Result status) {
     switch (status) {
@@ -38,6 +51,11 @@ int main(int argc, char **argv) {
     }
     char buffer[255];
 
+    UserSettings settings;
+    settings.fontSize = DEFAULT_FONT_SIZE;
+    settings.lineHeight = DEFAULT_LINE_HEIGHT;
+    settings.charWidth = DEFAULT_CHAR_WIDTH;
+
     GapBuffer gb;
     InitGapBuffer(&gb);
 
@@ -50,6 +68,8 @@ int main(int argc, char **argv) {
     }
 
     PrintBuffer(&gb);
+    ArrayList newlineIndices;
+    InitArrayList(&newlineIndices, 128);
 
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
@@ -73,8 +93,8 @@ int main(int argc, char **argv) {
     renderer = SDL_CreateRenderer(window, -1, rendererFlags);
 
     TTF_Init();
-    TTF_Font *font = TTF_OpenFont("CousineNerdFontMono-Regular.ttf", 24);
-
+    TTF_Font *font =
+        TTF_OpenFont("CousineNerdFontMono-Regular.ttf", settings.fontSize);
     // main loop
     int quit = 0;
     while (!quit) {
@@ -110,14 +130,29 @@ int main(int argc, char **argv) {
 
         //    RenderText(renderer, &w, &h);
         SDL_Color white = {255, 255, 255};
-        SDL_Surface *textSurface = TTF_RenderText_Solid(font, "Test", white);
+        int lineCount = h - BOTTOM_PADDING;
+        int maxLineWidth = w - LEFT_PADDING;
+        int maxLineChars = maxLineWidth / settings.charWidth;
+
+        for (int i = 0; i < gb.contentLength; i++) {
+            if (gb.buffer[i] == '\n') {
+                printf("%d index\n", i);
+            }
+
+        }
+
+
+        SDL_Surface *textSurface = TTF_RenderText_Solid(font, "T", white);
         SDL_Texture *textTexture =
             SDL_CreateTextureFromSurface(renderer, textSurface);
         SDL_Rect Message_rect;
         Message_rect.x = 0;
         Message_rect.y = 0;
-        Message_rect.w = 100;
-        Message_rect.h = 100;
+        int scalar = settings.lineHeight / textSurface->h;
+
+        Message_rect.w = textSurface->w;
+        Message_rect.h = textSurface->h;
+        printf("%d w, %d h\n", textSurface->w, textSurface->h);
         SDL_RenderCopy(renderer, textTexture, NULL, &Message_rect);
         SDL_FreeSurface(textSurface);
         SDL_DestroyTexture(textTexture);
