@@ -1,5 +1,4 @@
 #include "gapBuffer.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,6 +31,18 @@ void AppendToBuffer(GapBuffer *gb, char c) {
         Resize(gb);
     }
     gb->buffer[gb->contentLength - 1] = c;
+}
+
+void InitGapBufferFromFile(GapBuffer *gb, FILE *file) {
+
+    InitGapBuffer(gb);
+    while (1) {
+        char c = fgetc(file);
+        if (feof(file)) {
+            break;
+        }
+        AppendToBuffer(gb, c);
+    }
 }
 
 void CleanupGapBuffer(GapBuffer *gb) { free(gb->buffer); }
@@ -123,5 +134,4 @@ void PrintBuffer(GapBuffer *gb) {
         printf("%c", gb->buffer[i]);
         i++;
     }
-
 }

@@ -1,150 +1,121 @@
 #include "arrayList.h"
-#include "consts.h"
 #include "gapBuffer.h"
 #include "input.h"
 #include "ui.h"
-#include <SDL2/SDL.h>
+#include "main.h"
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
+#define DEFAULT_SCREEN_WIDTH 1280
+#define DEFAULT_SCREEN_HEIGHT 720
 #define DEFAULT_FONT_SIZE 20
 #define DEFAULT_LINE_HEIGHT 20
-#define DEFAULT_CHAR_WIDTH 0.6 * DEFAULT_FONT_SIZE
-#define LEFT_PADDING 0
-#define BOTTOM_PADDING 0 
 
-typedef struct {
-    int fontSize;
-    int lineHeight;
-    int charWidth;
 
-} UserSettings;
+void SetupSDL(SDLState *s) {
 
-int Quit(Result status) {
-    switch (status) {
-    case Success:
-        printf("Program exited normally");
-        break;
-    case Error:
-        printf("Program error, terminating");
-        break;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        printf("failed to initialize SDL. Error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
     }
-    SDL_Quit();
-    TTF_Quit();
-    exit((int)status);
+
+    const int windowFlags = SDL_WINDOW_RESIZABLE;
+    s->window = SDL_CreateWindow("JVim", SDL_WINDOWPOS_UNDEFINED,
+                                 SDL_WINDOWPOS_UNDEFINED, DEFAULT_SCREEN_WIDTH,
+                                 DEFAULT_SCREEN_HEIGHT, windowFlags);
+
+    if (!s->window) {
+        printf("Failed to create window. Error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    const int rendererFlags = SDL_RENDERER_ACCELERATED;
+    s->renderer = SDL_CreateRenderer(s->window, -1, rendererFlags);
+
+    if (!s->renderer) {
+        printf("Failed to create renderer. Error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    s->w = DEFAULT_SCREEN_WIDTH;
+    s->h = DEFAULT_SCREEN_HEIGHT;
+    s->quit = 0;
+}
+
+void InitSettings(UserSettings* s) {
+
+    s->fontSize = DEFAULT_FONT_SIZE;
+    s->lineHeight = DEFAULT_LINE_HEIGHT;
+    s->fontColor.r = 255;
+    s->fontColor.g = 255;
+    s->fontColor.b = 255;
+    s->fontColor.a = 255;
+
+    s->bgColor.r = 50;
+    s->bgColor.g = 50;
+    s->bgColor.b = 50;
+    s->bgColor.a = 255;
+
 }
 
 int main(int argc, char **argv) {
 
     if (argc != 2) {
         printf("Invalid Arguments\n");
-        Quit(Error);
+        exit(EXIT_FAILURE);
     }
     char *filePath = argv[1];
     FILE *file = fopen(filePath, "r");
     if (file == NULL) {
         printf("Cannot open file");
-        Quit(Error);
+        exit(EXIT_FAILURE);
     }
-    char buffer[255];
 
     UserSettings settings;
-    settings.fontSize = DEFAULT_FONT_SIZE;
-    settings.lineHeight = DEFAULT_LINE_HEIGHT;
-    settings.charWidth = DEFAULT_CHAR_WIDTH;
+    InitSettings(&settings);
 
     GapBuffer gb;
-    InitGapBuffer(&gb);
-
-    while (1) {
-        char c = fgetc(file);
-        if (feof(file)) {
-            break;
-        }
-        AppendToBuffer(&gb, c);
-    }
-
+    InitGapBufferFromFile(&gb, file);
     PrintBuffer(&gb);
+
     ArrayList newlineIndices;
     InitArrayList(&newlineIndices, 128);
 
-    SDL_Window *window = NULL;
-    SDL_Renderer *renderer = NULL;
-    int w = SCREEN_WIDTH;
-    int h = SCREEN_HEIGHT;
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("failed to initialize SDL. Error: %s", SDL_GetError());
-        Quit(Error);
-    }
-    const int windowFlags = SDL_WINDOW_RESIZABLE;
-    window = SDL_CreateWindow("JVim", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
-                              SCREEN_HEIGHT, windowFlags);
-    if (!window) {
-        printf("Failed to create window. Error: %s", SDL_GetError());
-        Quit(Error);
-    }
-
-    const int rendererFlags = SDL_RENDERER_ACCELERATED;
-    renderer = SDL_CreateRenderer(window, -1, rendererFlags);
+    SDLState sdlState;
+    SetupSDL(&sdlState);
 
     TTF_Init();
     TTF_Font *font =
         TTF_OpenFont("CousineNerdFontMono-Regular.ttf", settings.fontSize);
-    // main loop
-    int quit = 0;
-    while (!quit) {
-        SDL_Event inputEvent;
-        while (SDL_PollEvent(&inputEvent)) {
-            switch (inputEvent.type) {
-            case SDL_QUIT:
-                quit = 1;
-                break;
-            case SDL_KEYDOWN:
-                printf("keydown");
-                HandleKeyDown(&inputEvent);
-                break;
-            case SDL_KEYUP:
-                printf("keyup");
-                HandleKeyUp(&inputEvent);
-                break;
-            default:
-                break;
-            }
+
+
+    while (!sdlState.quit) {
+
+        HandleInput(&sdlState);
+
+        if (SDL_GetRendererOutputSize(sdlState.renderer, &sdlState.w, &sdlState.h) != 0) {
+            printf("SDL_GetRendererOutputSize failed. Error: %s", SDL_GetError());
+            exit(EXIT_FAILURE);
         }
 
-        if (SDL_GetRendererOutputSize(renderer, &w, &h) != 0) {
-            printf("SDL_GetDesktopDisplayMode failed");
-            Quit(Error);
-        }
+        SDL_SetRenderDrawBlendMode(sdlState.renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(sdlState.renderer, 0, 0, 0, 255);
+        SDL_RenderClear(sdlState.renderer);
 
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+        RenderUI(sdlState.renderer, &sdlState.w, &sdlState.h);
 
-        RenderUI(renderer, &w, &h);
-
-        //    RenderText(renderer, &w, &h);
         SDL_Color white = {255, 255, 255};
-        int lineCount = h - BOTTOM_PADDING;
-        int maxLineWidth = w - LEFT_PADDING;
-        int maxLineChars = maxLineWidth / settings.charWidth;
 
         for (int i = 0; i < gb.contentLength; i++) {
             if (gb.buffer[i] == '\n') {
                 printf("%d index\n", i);
             }
-
         }
-
 
         SDL_Surface *textSurface = TTF_RenderText_Solid(font, "T", white);
         SDL_Texture *textTexture =
-            SDL_CreateTextureFromSurface(renderer, textSurface);
+            SDL_CreateTextureFromSurface(sdlState.renderer, textSurface);
         SDL_Rect Message_rect;
         Message_rect.x = 0;
         Message_rect.y = 0;
@@ -152,16 +123,17 @@ int main(int argc, char **argv) {
 
         Message_rect.w = textSurface->w;
         Message_rect.h = textSurface->h;
-        printf("%d w, %d h\n", textSurface->w, textSurface->h);
-        SDL_RenderCopy(renderer, textTexture, NULL, &Message_rect);
+        SDL_RenderCopy(sdlState.renderer, textTexture, NULL, &Message_rect);
         SDL_FreeSurface(textSurface);
         SDL_DestroyTexture(textTexture);
 
-        SDL_RenderPresent(renderer);
+        SDL_RenderPresent(sdlState.renderer);
 
         SDL_Delay(16);
     }
 
     CleanupGapBuffer(&gb);
-    Quit(Success);
+    SDL_Quit();
+    TTF_Quit();
+    exit(EXIT_SUCCESS);
 }

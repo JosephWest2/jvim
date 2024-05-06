@@ -1,5 +1,25 @@
 #include "input.h"
-#include <SDL2/SDL.h>
+#include "main.h"
+
+void HandleInput(SDLState* sdlState) {
+
+    SDL_Event inputEvent;
+    while (SDL_PollEvent(&inputEvent)) {
+        switch (inputEvent.type) {
+        case SDL_QUIT:
+            sdlState->quit = 1;
+            break;
+        case SDL_KEYDOWN:
+            HandleKeyDown(&inputEvent);
+            break;
+        case SDL_KEYUP:
+            HandleKeyUp(&inputEvent);
+            break;
+        default:
+            break;
+        }
+    }
+}
 
 void HandleKeyDown(SDL_Event *inputEvent) {
 
