@@ -25,7 +25,7 @@ void Append(ArrayList *al, const int n) {
         Grow(al);
     }
 
-    al->buffer[al->contentLength] = n;
+    al->buffer[al->contentLength-1] = n;
 }
 
 void Remove(ArrayList *al, const unsigned int index) {

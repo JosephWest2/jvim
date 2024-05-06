@@ -1,6 +1,6 @@
 #pragma once
 
-typedef struct {
+typedef struct GapBuffer {
     char *buffer;
     int length;
     int gapWidth;
@@ -9,7 +9,7 @@ typedef struct {
 } GapBuffer;
 
 typedef enum { Left, Right } Direction;
-typedef struct __sFILE FILE;
+typedef struct _IO_FILE FILE;
 
 void InitGapBuffer(GapBuffer *gb);
 

@@ -1,4 +1,5 @@
 #include "gapBuffer.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -8,7 +9,7 @@
 
 void InitGapBuffer(GapBuffer *gb) {
 
-    gb->buffer = malloc(sizeof(char) * INITIAL_LENGTH);
+    gb->buffer = malloc(INITIAL_LENGTH);
     gb->length = INITIAL_LENGTH;
     gb->gapWidth = DEFAULT_GAP_WIDTH;
     gb->gapIndex = 0;
@@ -17,7 +18,7 @@ void InitGapBuffer(GapBuffer *gb) {
 
 void Resize(GapBuffer *gb) {
 
-    char *temp = malloc(sizeof(char) * gb->length * 2);
+    char *temp = malloc(gb->length * 2);
     memcpy(temp, gb->buffer, gb->length);
     free(gb->buffer);
     gb->buffer = temp;

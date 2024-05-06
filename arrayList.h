@@ -1,4 +1,6 @@
-typedef struct {
+#pragma once
+
+typedef struct ArrayList {
     int* buffer;
     int length;
     int contentLength;
