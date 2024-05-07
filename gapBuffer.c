@@ -1,4 +1,5 @@
 #include "gapBuffer.h"
+#include "main.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,20 +17,16 @@ void InitGapBuffer(GapBuffer *gb) {
     gb->contentLength = DEFAULT_GAP_WIDTH;
 }
 
-void Resize(GapBuffer *gb) {
-
-    char *temp = malloc(gb->length * 2);
-    memcpy(temp, gb->buffer, gb->length);
-    free(gb->buffer);
-    gb->buffer = temp;
+void _Grow(GapBuffer *gb) {
     gb->length *= 2;
+    gb->buffer = realloc(gb->buffer, gb->length);
 }
 
 void AppendToBuffer(GapBuffer *gb, char c) {
 
     gb->contentLength++;
     if (gb->contentLength == gb->length) {
-        Resize(gb);
+        _Grow(gb);
     }
     gb->buffer[gb->contentLength - 1] = c;
 }
@@ -48,10 +45,10 @@ void InitGapBufferFromFile(GapBuffer *gb, FILE *file) {
 
 void CleanupGapBuffer(GapBuffer *gb) { free(gb->buffer); }
 
-void MoveGap(GapBuffer *gb, int distance, Direction direction) {
+void MoveGap(GapBuffer *gb, int distance, Direction1D direction) {
     const int prev = gb->gapIndex;
 
-    if (direction == Left) {
+    if (direction == left) {
 
         if (gb->gapIndex - distance > 0) {
             gb->gapIndex -= distance;
@@ -59,7 +56,7 @@ void MoveGap(GapBuffer *gb, int distance, Direction direction) {
             gb->gapIndex = 0;
         }
 
-    } else if (direction == Right) {
+    } else if (direction == Up) {
 
         if (gb->gapIndex + distance < gb->length - gb->gapWidth) {
             gb->gapIndex += distance;
@@ -75,10 +72,10 @@ void MoveGap(GapBuffer *gb, int distance, Direction direction) {
     }
 }
 
-void ExpandGap(GapBuffer *gb, const int amount) {
+void _ExpandGap(GapBuffer *gb, const int amount) {
 
     if (gb->contentLength + amount > gb->length) {
-        Resize(gb);
+        _Grow(gb);
     }
 
     int i = gb->contentLength - 1;
@@ -92,7 +89,7 @@ void ExpandGap(GapBuffer *gb, const int amount) {
 void Insert(GapBuffer *gb, const char *const string, const int length) {
 
     if (gb->gapWidth < length) {
-        ExpandGap(gb, length - gb->gapWidth + DEFAULT_GAP_WIDTH);
+        _ExpandGap(gb, length - gb->gapWidth + DEFAULT_GAP_WIDTH);
     }
     memcpy(gb->buffer + gb->gapIndex, string, length);
     gb->gapWidth -= length;

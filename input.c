@@ -2,19 +2,19 @@
 #include "main.h"
 #include <SDL2/SDL.h>
 
-void HandleInput(SDLState* sdlState, EditorState* editorState) {
+void HandleInput(JVIMState *jvs) {
 
     SDL_Event inputEvent;
     while (SDL_PollEvent(&inputEvent)) {
         switch (inputEvent.type) {
         case SDL_QUIT:
-            sdlState->quit = 1;
+            jvs->sdl.quit = 1;
             break;
         case SDL_KEYDOWN:
-            HandleKeyDown(&inputEvent, editorState);
+            HandleKeyDown(&inputEvent, &jvs->editor);
             break;
         case SDL_KEYUP:
-            HandleKeyUp(&inputEvent, editorState);
+            HandleKeyUp(&inputEvent, &jvs->editor);
             break;
         default:
             break;
@@ -22,31 +22,43 @@ void HandleInput(SDLState* sdlState, EditorState* editorState) {
     }
 }
 
-void HandleKeyDown(SDL_Event *inputEvent, EditorState* editorState) {
+void HandleKeyDown(SDL_Event *inputEvent, EditorState *editorState) {
 
     switch (inputEvent->key.keysym.sym) {
     case SDLK_j:
         printf("j");
-        if (editorState->cursorLine + 1 < editorState->totalLines) {
-            editorState->cursorLine++;
+        if (editorState->lowestVisibleLineIndex + editorState->cursorLineIndex + 1 <= editorState->fileLineCount) {
+            if (editorState->cursorLineIndex + 1 == editorState->visibleLineCount) {
+                editorState->lowestVisibleLineIndex++;
+            } else {
+                editorState->cursorLineIndex++;
+            }
         }
         break;
     case SDLK_k:
         printf("k");
-        if (editorState->cursorLine - 1 >= 0) {
-            editorState->cursorLine--;
+        if (editorState->cursorLineIndex > 0) {
+            editorState->cursorLineIndex--;
+        } else if (editorState->lowestVisibleLineIndex > 0) {
+            editorState->lowestVisibleLineIndex--;
         }
         break;
     case SDLK_h:
         printf("h");
+        if (editorState->preferredCursorColIndex - 1 >= 0) {
+            editorState->preferredCursorColIndex--;
+        }
         break;
     case SDLK_l:
         printf("l");
+        if (editorState->preferredCursorColIndex + 1 < editorState->cursorLineLength) {
+            editorState->preferredCursorColIndex++;
+        }
         break;
     }
 }
 
-void HandleKeyUp(SDL_Event *inputEvent, EditorState* editorState) {
+void HandleKeyUp(SDL_Event *inputEvent, EditorState *editorState) {
 
     switch (inputEvent->key.keysym.sym) {
     case SDLK_j:

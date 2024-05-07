@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 typedef struct GapBuffer {
     char *buffer;
     int length;
@@ -8,7 +10,6 @@ typedef struct GapBuffer {
     int contentLength;
 } GapBuffer;
 
-typedef enum { Left, Right } Direction;
 typedef struct _IO_FILE FILE;
 
 void InitGapBuffer(GapBuffer *gb);
@@ -20,10 +21,10 @@ void AppendToBuffer(GapBuffer *gb, char c);
 
 void CleanupGapBuffer(GapBuffer *gb);
 
-void MoveGap(GapBuffer *gb, const int distance, const Direction direction);
+void MoveGap(GapBuffer *gb, const int distance, Direction1D direction);
 
 void Insert(GapBuffer *gb, const char *const string, const int length);
 
-void Delete(GapBuffer *gb, const Direction direction, const int amount);
+void Delete(GapBuffer *gb, Direction1D direction, const int amount);
 
 void PrintBuffer(GapBuffer *gb);

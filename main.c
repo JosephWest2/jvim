@@ -1,6 +1,7 @@
 #include "main.h"
 #include "input.h"
 #include "render.h"
+#include "editor.h"
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
@@ -8,12 +9,10 @@
 #define DEFAULT_SCREEN_WIDTH 1280
 #define DEFAULT_SCREEN_HEIGHT 720
 #define DEFAULT_FONT_SIZE 20
-#define DEFAULT_LINE_HEIGHT 20
 
 void InitSettings(UserSettings *s) {
 
     s->fontSize = DEFAULT_FONT_SIZE;
-    s->lineHeight = DEFAULT_LINE_HEIGHT;
     s->fontColor.r = 255;
     s->fontColor.g = 255;
     s->fontColor.b = 255;
@@ -73,14 +72,21 @@ void SetupSDL(SDLState *sdl, UserSettings *settings) {
 
 void InitEditorState(EditorState *e, FILE *f) {
 
-    e->cursorRow = 0;
-    e->cursorLine = 0;
-    e->lowestVisibleLine = 0;
-    e->totalLines = 0;
+    e->preferredCursorColIndex = 0;
+    e->cursorLineIndex = 0;
+    e->lowestVisibleLineIndex = 0;
+    e->fileLineCount = 0;
 
-    InitGapBufferFromFile(&e->textBuffer, f);
+    InitGapBufferFromFile(&e->text, f);
 
-    InitArrayList(&e->newlineIndices, 128);
+    InitArrayListInt(&e->newlineIndices, 128);
+}
+
+void InitJvimState(JVIMState* jvs, FILE* file) {
+
+    InitSettings(&jvs->settings);
+    InitEditor(&jvs->editor, file);
+    SetupSDL(&jvs->sdl, &jvs->settings); 
 }
 
 int main(int argc, char **argv) {
@@ -96,42 +102,31 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    UserSettings settings;
-    InitSettings(&settings);
-
-    EditorState editorState;
-    InitEditorState(&editorState, file);
-
-    for (int i = 0; i < editorState.textBuffer.contentLength; i++) {
-        if (editorState.textBuffer.buffer[i] == '\n') {
-            Append(&editorState.newlineIndices, i);
-            editorState.totalLines++;
-        }
-    }
-
-    SDLState sdlState;
-    SetupSDL(&sdlState, &settings);
+    JVIMState jvs;
+    InitJvimState(&jvs, file);
+    
+    InitEditor(&jvs.editor, file);
 
 
-    while (!sdlState.quit) {
 
-        HandleInput(&sdlState, &editorState);
+    while (!jvs.sdl.quit) {
 
-        if (SDL_GetRendererOutputSize(sdlState.renderer, &sdlState.w,
-                                      &sdlState.h) != 0) {
+        HandleInput(&jvs);
+
+        if (SDL_GetRendererOutputSize(jvs.sdl.renderer, &jvs.sdl.w,
+                                      &jvs.sdl.h) != 0) {
             printf("SDL_GetRendererOutputSize failed. Error: %s",
                    SDL_GetError());
             exit(EXIT_FAILURE);
         }
 
-        Render(&sdlState, &editorState, &settings);
+        Render(&jvs);
 
-        SDL_RenderPresent(sdlState.renderer);
 
         SDL_Delay(16);
     }
 
-    CleanupGapBuffer(&editorState.textBuffer);
+    CleanupGapBuffer(&jvs.editor.text);
     SDL_Quit();
     TTF_Quit();
     exit(EXIT_SUCCESS);

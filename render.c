@@ -3,57 +3,63 @@
 #include <SDL2/SDL_ttf.h>
 
 #define LINE_THICKNESS 4
+#define LEFT_PADDING jvs->editor.charWidth * 5
 #define SPLIT_SDL_COLOR(var) var.r, var.g, var.b, var.a
 
-void RenderBottomLine(SDLState *sdlState, EditorState *editorState,
-                      UserSettings *settings, int textLineHeight) {
+void RenderBottomLine(JVIMState *jvs) {
 
     SDL_Rect bottomBorder;
     bottomBorder.x = 0;
-    bottomBorder.y = sdlState->h - textLineHeight - LINE_THICKNESS;
-    bottomBorder.w = sdlState->w;
+    bottomBorder.y = jvs->sdl.h - jvs->editor.lineHeight - LINE_THICKNESS;
+    bottomBorder.w = jvs->sdl.w;
     bottomBorder.h = LINE_THICKNESS;
 
-    SDL_SetRenderDrawColor(sdlState->renderer,
-                           SPLIT_SDL_COLOR(settings->lineColor));
-    SDL_RenderFillRect(sdlState->renderer, &bottomBorder);
+    SDL_SetRenderDrawColor(jvs->sdl.renderer, SPLIT_SDL_COLOR(jvs->settings.lineColor));
+    SDL_RenderFillRect(jvs->sdl.renderer, &bottomBorder);
 }
 
-void RenderText(SDLState *sdlState, EditorState *editorState,
-                UserSettings *settings, int textLineHeight, int leftPadding) {
 
-    const int remainingHeight = sdlState->h - textLineHeight - LINE_THICKNESS;
-    const int lineCount = remainingHeight / textLineHeight;
+
+void RenderText(JVIMState *jvs) {
+
+    const int remainingHeight = jvs->sdl.h - jvs->editor.lineHeight - LINE_THICKNESS;
+    jvs->editor.visibleLineCount = remainingHeight / jvs->editor.lineHeight;
 
     int lineY = 0;
-    int i = editorState->lowestVisibleLine;
-    while (i < lineCount && i < editorState->totalLines) {
-        const int lineStart = ALGet(&editorState->newlineIndices, i) + 1;
+    int i = jvs->editor.lowestVisibleLineIndex;
+    while (i < jvs->editor.visibleLineCount + jvs->editor.lowestVisibleLineIndex && i + 1 < jvs->editor.fileLineCount) {
+        const int lineStart = ALIGet(&jvs->editor.newlineIndices, i) + 1;
         int lineEnd;
-        if (i == editorState->newlineIndices.contentLength) {
-            lineEnd = editorState->textBuffer.contentLength - 1;
+        if (i == jvs->editor.newlineIndices.contentLength) {
+            lineEnd = jvs->editor.text.contentLength - 1;
         } else {
-            lineEnd = ALGet(&editorState->newlineIndices, i + 1);
+            lineEnd = ALSGet(&jvs->editor.newlineIndices, i + 1);
+        }
+        if (i == jvs->editor.cursorLineIndex) {
+            jvs->editor.cursorLineLength = lineEnd - lineStart;
+            if (jvs->editor.preferredCursorColIndex >= jvs->editor.cursorLineLength) {
+                jvs->editor.effectiveCursorColIndex = jvs->editor.cursorLineLength;
+            } else {
+                jvs->editor.effectiveCursorColIndex = jvs->editor.preferredCursorColIndex;
+            }
         }
         char *s = " ";
         int alloc = 0;
         if (lineEnd != lineStart) {
             alloc = 1;
             s = malloc(lineEnd - lineStart + 1);
-            memcpy(s, &editorState->textBuffer.buffer[lineStart],
-                   lineEnd - lineStart + 1);
+            memcpy(s, &jvs->editor.text.buffer[lineStart], lineEnd - lineStart + 1);
             s[lineEnd - lineStart] = '\0';
         }
-        SDL_Surface *ts =
-            TTF_RenderUTF8_Blended(sdlState->font, s, settings->fontColor);
-        SDL_Texture *tt = SDL_CreateTextureFromSurface(sdlState->renderer, ts);
+        SDL_Surface *ts = TTF_RenderUTF8_Blended(jvs->sdl.font, s, jvs->settings.fontColor);
+        SDL_Texture *tt = SDL_CreateTextureFromSurface(jvs->sdl.renderer, ts);
         SDL_Rect r;
-        r.x = leftPadding;
+        r.x = LEFT_PADDING;
         r.y = lineY;
         r.h = ts->h;
         r.w = ts->w;
 
-        SDL_RenderCopy(sdlState->renderer, tt, NULL, &r);
+        SDL_RenderCopy(jvs->sdl.renderer, tt, NULL, &r);
 
         if (alloc) {
             free(s);
@@ -62,41 +68,35 @@ void RenderText(SDLState *sdlState, EditorState *editorState,
         SDL_DestroyTexture(tt);
 
         i++;
-        lineY += textLineHeight;
+        lineY += jvs->editor.lineHeight;
     }
 }
 
-void RenderCursor(SDLState* sdlState, EditorState* editorState, UserSettings* settings, int textLineHeight, int leftPadding) {
-
-    int charWidth;
-    TTF_SizeUTF8(sdlState->font, "0", &charWidth, NULL); 
+void RenderCursor(JVIMState *jvs) {
 
     SDL_Rect cursor;
-    cursor.x = leftPadding + charWidth * editorState->cursorRow;
-    cursor.y = editorState->cursorLine * textLineHeight;
-    cursor.w = charWidth;
-    cursor.h = textLineHeight;
+    cursor.x = LEFT_PADDING + jvs->editor.charWidth * jvs->editor.effectiveCursorColIndex;
+    cursor.y = jvs->editor.cursorLineIndex * jvs->editor.lineHeight;
+    cursor.w = jvs->editor.charWidth;
+    cursor.h = jvs->editor.lineHeight;
 
-    SDL_SetRenderDrawColor(sdlState->renderer, SPLIT_SDL_COLOR(settings->cursorColor)); 
-    SDL_RenderFillRect(sdlState->renderer, &cursor);
-
+    SDL_SetRenderDrawColor(jvs->sdl.renderer, SPLIT_SDL_COLOR(jvs->settings.cursorColor));
+    SDL_RenderFillRect(jvs->sdl.renderer, &cursor);
 }
 
-void Render(SDLState *sdlState, EditorState *editorState,
-            UserSettings *settings) {
+void Render(JVIMState *jvs) {
 
-    SDL_SetRenderDrawColor(sdlState->renderer,
-                           SPLIT_SDL_COLOR(settings->bgColor));
-    SDL_RenderClear(sdlState->renderer);
+    SDL_SetRenderDrawColor(jvs->sdl.renderer, SPLIT_SDL_COLOR(jvs->settings.bgColor));
+    SDL_RenderClear(jvs->sdl.renderer);
 
-    int textLineHeight = TTF_FontHeight(sdlState->font);
-    int leftPadding;
+    jvs->editor.lineHeight = TTF_FontHeight(jvs->sdl.font);
+    TTF_SizeUTF8(jvs->sdl.font, "0", &jvs->editor.charWidth, NULL);
 
-    TTF_SizeUTF8(sdlState->font, "0000.", &leftPadding, NULL);
+    RenderBottomLine(jvs);
 
-    RenderBottomLine(sdlState, editorState, settings, textLineHeight);
+    RenderText(jvs);
 
-    RenderText(sdlState, editorState, settings, textLineHeight, leftPadding);
+    RenderCursor(jvs);
 
-    RenderCursor(sdlState, editorState, settings, textLineHeight, leftPadding);
+    SDL_RenderPresent(jvs->sdl.renderer);
 }

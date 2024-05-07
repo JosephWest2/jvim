@@ -1,7 +1,10 @@
 #pragma once
 
-typedef struct UserSettings UserSettings;
-typedef struct EditorState EditorState;
-typedef struct SDLState SDLState;
+#include "main.h"
 
-void Render(SDLState* sdlState, EditorState* editorState, UserSettings* settings);
+typedef struct {
+    int charwidth;
+    int lineHeight;
+} RenderState;
+
+void Render(JVIMState* jvs);
