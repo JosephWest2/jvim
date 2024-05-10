@@ -1,10 +1,6 @@
 #pragma once
 
+#include "editor.h"
 #include "main.h"
 
-typedef struct {
-    int charwidth;
-    int lineHeight;
-} RenderState;
-
-void Render(JVIMState* jvs);
+void Render(const EditorState* const editor, SDLState* sdl, const UserSettings* const settings);

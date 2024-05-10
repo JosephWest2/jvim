@@ -1,18 +1,19 @@
 #pragma once
 
+#include <stddef.h>
+
 typedef struct ArrayListStr {
-    char** buffer;
-    int length;
-    int contentLength;
+    char **buffer;
+    size_t length;
+    size_t contentLength;
 } ArrayListStr;
 
-void ALSInit (ArrayListStr* al, const unsigned int initialLength);
+void ALS_Init(ArrayListStr *al, const unsigned int initialLength);
 
-void ALSAppend (ArrayListStr* al, char* s);
+void ALS_Append(ArrayListStr *al, char *s);
 
-void ALSRemove (ArrayListStr *al, const unsigned int index);
+void ALS_Remove(ArrayListStr *al, const unsigned int index);
 
-char* ALSGet (ArrayListStr* al, const unsigned int index);
+char *ALS_Get(const ArrayListStr *const al, const unsigned int index);
 
-void ALSCleanup (ArrayListStr* al);
-
+void ALS_Free(ArrayListStr *al);

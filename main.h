@@ -1,22 +1,11 @@
 #pragma once
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include "editor.h"
-#include "gapBuffer.h"
+
 #include "arrayListInt.h"
 #include "arrayListStr.h"
-
-typedef enum {
-    Left,
-    Right,
-    Up,
-    Down,
-} Direction2D;
-
-typedef enum {
-    left,
-    right,
-} Direction1D;
+#include "editor.h"
+#include "gapBuffer.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 typedef struct UserSettings {
     int fontSize;
@@ -24,7 +13,6 @@ typedef struct UserSettings {
     SDL_Color lineColor;
     SDL_Color bgColor;
     SDL_Color cursorColor;
-
 } UserSettings;
 
 typedef struct SDLState {
@@ -34,13 +22,10 @@ typedef struct SDLState {
     int w;
     int h;
     int quit;
-
 } SDLState;
 
 typedef struct JVIMState {
-
     UserSettings settings;
     EditorState editor;
     SDLState sdl;
-
 } JVIMState;

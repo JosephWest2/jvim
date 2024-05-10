@@ -1,30 +1,24 @@
 #pragma once
 
-#include <stdbool.h>
+#include "shared.h"
+#include <stdio.h>
 
 typedef struct GapBuffer {
     char *buffer;
-    int length;
+    size_t length;
     int gapWidth;
-    int gapIndex;
-    int contentLength;
+    size_t gapIndex;
+    size_t contentLength;
 } GapBuffer;
 
-typedef struct _IO_FILE FILE;
+void GB_Init(GapBuffer *gb, FILE *file);
 
-void InitGapBuffer(GapBuffer *gb);
+void GB_Free(GapBuffer *gb);
 
-void InitGapBufferFromFile(GapBuffer *gb, FILE *file);
+void GB_MoveGap(GapBuffer *gb, const int distance, const Direction direction);
 
-// Intended for Initialization Only
-void AppendToBuffer(GapBuffer *gb, char c);
+void GB_Insert(GapBuffer *gb, const char *const string, const int length);
 
-void CleanupGapBuffer(GapBuffer *gb);
+void GB_Delete(GapBuffer *gb, const Direction direction, const int amount);
 
-void MoveGap(GapBuffer *gb, const int distance, Direction1D direction);
-
-void Insert(GapBuffer *gb, const char *const string, const int length);
-
-void Delete(GapBuffer *gb, Direction1D direction, const int amount);
-
-void PrintBuffer(GapBuffer *gb);
+void GB_Print(const GapBuffer *const gb);

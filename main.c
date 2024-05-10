@@ -1,7 +1,7 @@
 #include "main.h"
+#include "editor.h"
 #include "input.h"
 #include "render.h"
-#include "editor.h"
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
@@ -29,9 +29,9 @@ void InitSettings(UserSettings *s) {
     s->lineColor.a = 255;
 
     s->cursorColor.r = 200;
-    s->cursorColor.g = 200;
-    s->cursorColor.b = 200;
-    s->cursorColor.a = 120;
+    s->cursorColor.g = 100;
+    s->cursorColor.b = 100;
+    s->cursorColor.a = 255;
 }
 
 void SetupSDL(SDLState *sdl, UserSettings *settings) {
@@ -42,9 +42,7 @@ void SetupSDL(SDLState *sdl, UserSettings *settings) {
     }
 
     const int windowFlags = SDL_WINDOW_RESIZABLE;
-    sdl->window = SDL_CreateWindow(
-        "JVim", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, windowFlags);
+    sdl->window = SDL_CreateWindow("JVim", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, windowFlags);
 
     if (!sdl->window) {
         printf("Failed to create window. Error: %s", SDL_GetError());
@@ -58,35 +56,15 @@ void SetupSDL(SDLState *sdl, UserSettings *settings) {
         printf("Failed to create renderer. Error: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
-    
+
     SDL_SetRenderDrawBlendMode(sdl->renderer, SDL_BLENDMODE_BLEND);
 
     TTF_Init();
-    sdl->font =
-        TTF_OpenFont("CousineNerdFontMono-Regular.ttf", settings->fontSize);
+    sdl->font = TTF_OpenFont("CousineNerdFontMono-Regular.ttf", settings->fontSize);
 
     sdl->w = DEFAULT_SCREEN_WIDTH;
     sdl->h = DEFAULT_SCREEN_HEIGHT;
     sdl->quit = 0;
-}
-
-void InitEditorState(EditorState *e, FILE *f) {
-
-    e->preferredCursorColIndex = 0;
-    e->cursorLineIndex = 0;
-    e->lowestVisibleLineIndex = 0;
-    e->fileLineCount = 0;
-
-    InitGapBufferFromFile(&e->text, f);
-
-    InitArrayListInt(&e->newlineIndices, 128);
-}
-
-void InitJvimState(JVIMState* jvs, FILE* file) {
-
-    InitSettings(&jvs->settings);
-    InitEditor(&jvs->editor, file);
-    SetupSDL(&jvs->sdl, &jvs->settings); 
 }
 
 int main(int argc, char **argv) {
@@ -102,31 +80,29 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    JVIMState jvs;
-    InitJvimState(&jvs, file);
-    
-    InitEditor(&jvs.editor, file);
+    UserSettings settings;
+    InitSettings(&settings);
 
+    SDLState sdl;
+    SetupSDL(&sdl, &settings);
 
+    EditorState editor;
+    Editor_Init(&editor, file);
 
-    while (!jvs.sdl.quit) {
+    while (!sdl.quit) {
 
-        HandleInput(&jvs);
+        Input_HandleInput(&editor, &sdl);
 
-        if (SDL_GetRendererOutputSize(jvs.sdl.renderer, &jvs.sdl.w,
-                                      &jvs.sdl.h) != 0) {
-            printf("SDL_GetRendererOutputSize failed. Error: %s",
-                   SDL_GetError());
+        if (SDL_GetRendererOutputSize(sdl.renderer, &sdl.w, &sdl.h) != 0) {
+            printf("SDL_GetRendererOutputSize failed. Error: %s", SDL_GetError());
             exit(EXIT_FAILURE);
         }
 
-        Render(&jvs);
-
+        Render(&editor, &sdl, &settings);
 
         SDL_Delay(16);
     }
 
-    CleanupGapBuffer(&jvs.editor.text);
     SDL_Quit();
     TTF_Quit();
     exit(EXIT_SUCCESS);

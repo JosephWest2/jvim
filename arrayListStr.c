@@ -2,20 +2,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void ALSInit(ArrayListStr *al, const unsigned int initialLength) {
+static void _Grow(ArrayListStr *al) {
+
+    al->length *= 2;
+    al->buffer = realloc(al->buffer, al->length * sizeof(char *));
+}
+
+void ALS_Init(ArrayListStr *al, const unsigned int initialLength) {
 
     al->buffer = malloc(sizeof(int) * initialLength);
     al->length = initialLength;
     al->contentLength = 0;
 }
 
-void _Grow(ArrayListStr *al) {
-
-    al->length *= 2;
-    al->buffer = realloc(al->buffer, al->length * sizeof(char *));
-}
-
-void ALSAppend(ArrayListStr *al, char *s) {
+void ALS_Append(ArrayListStr *al, char * s) {
 
     al->contentLength++;
     if (al->contentLength > al->length) {
@@ -25,7 +25,7 @@ void ALSAppend(ArrayListStr *al, char *s) {
     al->buffer[al->contentLength - 1] = s;
 }
 
-void ALSRemove(ArrayListStr *al, const unsigned int index) {
+void ALS_Remove(ArrayListStr *al, const unsigned int index) {
 
     int i = index;
     al->contentLength--;
@@ -34,7 +34,7 @@ void ALSRemove(ArrayListStr *al, const unsigned int index) {
     }
 }
 
-char *ALSGet(ArrayListStr *al, const unsigned int index) {
+char *ALS_Get(const ArrayListStr *const al, const unsigned int index) {
 
     if (index >= al->contentLength) {
 
@@ -44,4 +44,4 @@ char *ALSGet(ArrayListStr *al, const unsigned int index) {
     return al->buffer[index];
 }
 
-void ALSCleanup(ArrayListStr *al) { free(al->buffer); }
+void ALS_Cleanup(ArrayListStr *al) { free(al->buffer); }

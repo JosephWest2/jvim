@@ -1,24 +1,26 @@
 #pragma once
 
-#include "main.h"
+#include "shared.h"
 #include "gapBuffer.h"
 #include "arrayListInt.h"
 #include "arrayListStr.h"
 
 typedef struct {
-    int index;
+    size_t index;
     int preferredCol;
     int effectiveCol;
-    int lineIndex;
+    size_t lineIndex;
 } Cursor;
 
 typedef struct {
     Cursor cursor;
     GapBuffer text;
-    ArrayListInt newlineIndices;
-    ArrayListStr textLines;
+    // Index of the first character after a newline / begin of file
+    ArrayListInt newlineIndexes;
 } EditorState;
 
-void InitEditor(EditorState *e, FILE *f);
+void Editor_Init(EditorState *e, FILE *f);
 
-void MoveCursor(EditorState *e, Direction2D dir, int offset);
+size_t Editor_LineLength(const EditorState *const e, int lineIndex);
+
+void Editor_MoveCursor(EditorState *e, Direction direction, int offset);

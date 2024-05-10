@@ -1,28 +1,17 @@
 #include "gapBuffer.h"
-#include "main.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define INITIAL_LENGTH 1024
 #define DEFAULT_GAP_WIDTH 12
-#define MAX_GAP_WIDTH 24
 
-void InitGapBuffer(GapBuffer *gb) {
-
-    gb->buffer = malloc(INITIAL_LENGTH);
-    gb->length = INITIAL_LENGTH;
-    gb->gapWidth = DEFAULT_GAP_WIDTH;
-    gb->gapIndex = 0;
-    gb->contentLength = DEFAULT_GAP_WIDTH;
-}
-
-void _Grow(GapBuffer *gb) {
+static void _Grow(GapBuffer *gb) {
     gb->length *= 2;
     gb->buffer = realloc(gb->buffer, gb->length);
 }
 
-void AppendToBuffer(GapBuffer *gb, char c) {
+static void _InitAppendToBuffer(GapBuffer *gb, char c) {
 
     gb->contentLength++;
     if (gb->contentLength == gb->length) {
@@ -31,48 +20,7 @@ void AppendToBuffer(GapBuffer *gb, char c) {
     gb->buffer[gb->contentLength - 1] = c;
 }
 
-void InitGapBufferFromFile(GapBuffer *gb, FILE *file) {
-
-    InitGapBuffer(gb);
-    while (1) {
-        char c = fgetc(file);
-        if (feof(file)) {
-            break;
-        }
-        AppendToBuffer(gb, c);
-    }
-}
-
-void CleanupGapBuffer(GapBuffer *gb) { free(gb->buffer); }
-
-void MoveGap(GapBuffer *gb, int distance, Direction1D direction) {
-    const int prev = gb->gapIndex;
-
-    if (direction == left) {
-
-        if (gb->gapIndex - distance > 0) {
-            gb->gapIndex -= distance;
-        } else {
-            gb->gapIndex = 0;
-        }
-
-    } else if (direction == Up) {
-
-        if (gb->gapIndex + distance < gb->length - gb->gapWidth) {
-            gb->gapIndex += distance;
-        } else {
-            gb->gapIndex = gb->length - gb->gapWidth;
-        }
-    }
-
-    int i = 0;
-    while (i < gb->gapWidth) {
-        gb->buffer[prev + i] = gb->buffer[gb->gapIndex + i];
-        i++;
-    }
-}
-
-void _ExpandGap(GapBuffer *gb, const int amount) {
+static void _ExpandGap(GapBuffer *gb, const int amount) {
 
     if (gb->contentLength + amount > gb->length) {
         _Grow(gb);
@@ -86,7 +34,58 @@ void _ExpandGap(GapBuffer *gb, const int amount) {
     gb->gapWidth += amount;
 }
 
-void Insert(GapBuffer *gb, const char *const string, const int length) {
+void GB_Init(GapBuffer *gb, FILE *file) {
+
+    gb->buffer = malloc(INITIAL_LENGTH);
+    gb->length = INITIAL_LENGTH;
+    gb->gapWidth = DEFAULT_GAP_WIDTH;
+    gb->gapIndex = 0;
+    gb->contentLength = DEFAULT_GAP_WIDTH;
+    while (1) {
+        char c = fgetc(file);
+        if (feof(file)) {
+            break;
+        }
+        _InitAppendToBuffer(gb, c);
+    }
+}
+
+void GB_Free(GapBuffer *gb) {
+    free(gb->buffer);
+    gb = NULL;
+}
+
+void GB_MoveGap(GapBuffer *gb, const int distance, const Direction direction) {
+    const int prev = gb->gapIndex;
+
+    if (direction == Left) {
+
+        if (gb->gapIndex - distance > 0) {
+            gb->gapIndex -= distance;
+        } else {
+            gb->gapIndex = 0;
+        }
+
+    } else if (direction == Right) {
+
+        if (gb->gapIndex + distance < gb->length - gb->gapWidth) {
+            gb->gapIndex += distance;
+        } else {
+            gb->gapIndex = gb->length - gb->gapWidth;
+        }
+    } else {
+        printf("Invalid Direction Input GB_MoveGap");
+        return;
+    }
+
+    int i = 0;
+    while (i < gb->gapWidth) {
+        gb->buffer[prev + i] = gb->buffer[gb->gapIndex + i];
+        i++;
+    }
+}
+
+void GB_Insert(GapBuffer *gb, const char *const string, const int length) {
 
     if (gb->gapWidth < length) {
         _ExpandGap(gb, length - gb->gapWidth + DEFAULT_GAP_WIDTH);
@@ -96,7 +95,7 @@ void Insert(GapBuffer *gb, const char *const string, const int length) {
     gb->gapIndex += length;
 }
 
-void Delete(GapBuffer *gb, const Direction direction, const int amount) {
+void GB_Delete(GapBuffer *gb, const Direction direction, const int amount) {
 
     if (direction == Right) {
         if (gb->gapIndex + gb->gapWidth >= gb->contentLength) {
@@ -111,21 +110,9 @@ void Delete(GapBuffer *gb, const Direction direction, const int amount) {
             gb->gapIndex -= amount;
         }
     }
-
-    // Probably unneccesary
-    if (gb->gapWidth > MAX_GAP_WIDTH) {
-
-        const int d = MAX_GAP_WIDTH - gb->gapWidth;
-        int i = gb->gapIndex + gb->gapWidth;
-        while (i < gb->contentLength) {
-            gb->buffer[i - d] = gb->buffer[i];
-            i++;
-        }
-        gb->contentLength -= d;
-    }
 }
 
-void PrintBuffer(GapBuffer *gb) {
+void GB_Print(const GapBuffer *const gb) {
 
     int i = 0;
     while (i < gb->contentLength) {

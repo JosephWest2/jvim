@@ -1,102 +1,138 @@
+#include "render.h"
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
 #define LINE_THICKNESS 4
-#define LEFT_PADDING jvs->editor.charWidth * 5
 #define SPLIT_SDL_COLOR(var) var.r, var.g, var.b, var.a
 
-void RenderBottomLine(JVIMState *jvs) {
+typedef struct {
+    size_t lowestVisibleLine;
+    int charWidth;
+    int lineHeight;
+} RenderState;
+
+static int lineHeight = 0;
+static int charWidth = 0;
+
+static void RenderBottomLine(const EditorState *const editor, const SDLState *const sdl, const UserSettings *const settings) {
 
     SDL_Rect bottomBorder;
     bottomBorder.x = 0;
-    bottomBorder.y = jvs->sdl.h - jvs->editor.lineHeight - LINE_THICKNESS;
-    bottomBorder.w = jvs->sdl.w;
+    bottomBorder.y = sdl->h - lineHeight - LINE_THICKNESS;
+    bottomBorder.w = sdl->w;
     bottomBorder.h = LINE_THICKNESS;
 
-    SDL_SetRenderDrawColor(jvs->sdl.renderer, SPLIT_SDL_COLOR(jvs->settings.lineColor));
-    SDL_RenderFillRect(jvs->sdl.renderer, &bottomBorder);
+    SDL_SetRenderDrawColor(sdl->renderer, SPLIT_SDL_COLOR(settings->lineColor));
+    SDL_RenderFillRect(sdl->renderer, &bottomBorder);
 }
 
+static void RenderText(const EditorState *const editor, const SDLState *const sdl, const UserSettings *const settings, RenderState *renderState) {
 
+    int remainingHeight = sdl->h;
+    int lineCount = remainingHeight / renderState->lineHeight;
+    size_t iStart = renderState->lowestVisibleLine == 0 ? 0 : ALI_Get(&editor->newlineIndexes, renderState->lowestVisibleLine);
+    size_t iEnd;
+    if (lineCount + iStart >= editor->newlineIndexes.contentLength) {
+        iEnd = editor->text.contentLength - 1;
+    } else {
+        iEnd = ALI_Get(&editor->newlineIndexes, renderState->lowestVisibleLine + lineCount);
+    }
+    size_t renderLen = iEnd - iStart;
 
-void RenderText(JVIMState *jvs) {
+    char *renderString;
+    if (editor->text.gapIndex >= iStart && editor->text.gapIndex < iEnd) {
 
-    const int remainingHeight = jvs->sdl.h - jvs->editor.lineHeight - LINE_THICKNESS;
-    jvs->editor.visibleLineCount = remainingHeight / jvs->editor.lineHeight;
+        renderLen -= editor->text.gapWidth;
+        renderString = malloc(renderLen + 1);
+        int iGap = editor->text.gapIndex;
+        int iGapBuffer = iStart;
+        int iRender = 0;
+        while (iGapBuffer < iGap) {
+            renderString[iRender] = editor->text.buffer[iGapBuffer];
+            iRender++;
+            iGapBuffer++;
+        }
+
+        iGapBuffer += editor->text.gapWidth;
+
+        while (iGapBuffer < iEnd) {
+            renderString[iRender] = editor->text.buffer[iGapBuffer];
+            iRender++;
+            iGapBuffer++;
+        }
+    } else {
+        renderString = malloc(renderLen + 1);
+        memcpy(renderString, editor->text.buffer + iStart, renderLen);
+    }
+
+    renderString[renderLen] = '\0';
+    for (size_t i = 0; i < renderLen; i++) {
+        if (renderString[i] == '\n') {
+            renderString[i] = '\0';
+        }
+    }
 
     int lineY = 0;
-    int i = jvs->editor.lowestVisibleLineIndex;
-    while (i < jvs->editor.visibleLineCount + jvs->editor.lowestVisibleLineIndex && i + 1 < jvs->editor.fileLineCount) {
-        const int lineStart = ALIGet(&jvs->editor.newlineIndices, i) + 1;
-        int lineEnd;
-        if (i == jvs->editor.newlineIndices.contentLength) {
-            lineEnd = jvs->editor.text.contentLength - 1;
-        } else {
-            lineEnd = ALSGet(&jvs->editor.newlineIndices, i + 1);
-        }
-        if (i == jvs->editor.cursorLineIndex) {
-            jvs->editor.cursorLineLength = lineEnd - lineStart;
-            if (jvs->editor.preferredCursorColIndex >= jvs->editor.cursorLineLength) {
-                jvs->editor.effectiveCursorColIndex = jvs->editor.cursorLineLength;
-            } else {
-                jvs->editor.effectiveCursorColIndex = jvs->editor.preferredCursorColIndex;
+    char *p2 = renderString;
+    int i = 0;
+    while (p2 < renderString + renderLen) {
+
+        size_t len = strlen(p2);
+        if (len != 0) {
+
+            SDL_Surface *ts = TTF_RenderUTF8_Blended(sdl->font, p2, settings->fontColor);
+            if (ts == NULL) {
+                break;
             }
-        }
-        char *s = " ";
-        int alloc = 0;
-        if (lineEnd != lineStart) {
-            alloc = 1;
-            s = malloc(lineEnd - lineStart + 1);
-            memcpy(s, &jvs->editor.text.buffer[lineStart], lineEnd - lineStart + 1);
-            s[lineEnd - lineStart] = '\0';
-        }
-        SDL_Surface *ts = TTF_RenderUTF8_Blended(jvs->sdl.font, s, jvs->settings.fontColor);
-        SDL_Texture *tt = SDL_CreateTextureFromSurface(jvs->sdl.renderer, ts);
-        SDL_Rect r;
-        r.x = LEFT_PADDING;
-        r.y = lineY;
-        r.h = ts->h;
-        r.w = ts->w;
+            SDL_Texture *tt = SDL_CreateTextureFromSurface(sdl->renderer, ts);
 
-        SDL_RenderCopy(jvs->sdl.renderer, tt, NULL, &r);
+            SDL_Rect r;
+            r.x = 0;
+            r.y = lineY;
+            r.h = ts->h;
+            r.w = ts->w;
 
-        if (alloc) {
-            free(s);
+            SDL_RenderCopy(sdl->renderer, tt, NULL, &r);
+
+            SDL_FreeSurface(ts);
+            SDL_DestroyTexture(tt);
         }
-        SDL_FreeSurface(ts);
-        SDL_DestroyTexture(tt);
-
-        i++;
-        lineY += jvs->editor.lineHeight;
+        lineY += renderState->lineHeight;
+        p2 += len + 1;
     }
+
+    free(renderString);
 }
 
-void RenderCursor(JVIMState *jvs) {
+static void RenderCursor(const EditorState *const editor, SDLState *sdl, const UserSettings *const settings, RenderState *renderState) {
 
     SDL_Rect cursor;
-    cursor.x = LEFT_PADDING + jvs->editor.charWidth * jvs->editor.effectiveCursorColIndex;
-    cursor.y = jvs->editor.cursorLineIndex * jvs->editor.lineHeight;
-    cursor.w = jvs->editor.charWidth;
-    cursor.h = jvs->editor.lineHeight;
+    cursor.x = renderState->charWidth * editor->cursor.effectiveCol;
+    cursor.y = (editor->cursor.lineIndex - renderState->lowestVisibleLine) * renderState->lineHeight;
+    cursor.w = 2;
+    cursor.h = renderState->lineHeight;
 
-    SDL_SetRenderDrawColor(jvs->sdl.renderer, SPLIT_SDL_COLOR(jvs->settings.cursorColor));
-    SDL_RenderFillRect(jvs->sdl.renderer, &cursor);
+    SDL_SetRenderDrawColor(sdl->renderer, SPLIT_SDL_COLOR(settings->cursorColor));
+    SDL_RenderFillRect(sdl->renderer, &cursor);
 }
 
-void Render(JVIMState *jvs) {
+void Render(const EditorState *const editor, SDLState *sdl, const UserSettings *const settings) {
 
-    SDL_SetRenderDrawColor(jvs->sdl.renderer, SPLIT_SDL_COLOR(jvs->settings.bgColor));
-    SDL_RenderClear(jvs->sdl.renderer);
+    static RenderState renderState;
 
-    jvs->editor.lineHeight = TTF_FontHeight(jvs->sdl.font);
-    TTF_SizeUTF8(jvs->sdl.font, "0", &jvs->editor.charWidth, NULL);
+    SDL_SetRenderDrawColor(sdl->renderer, SPLIT_SDL_COLOR(settings->bgColor));
+    SDL_RenderClear(sdl->renderer);
 
-    RenderBottomLine(jvs);
+    renderState.lineHeight = TTF_FontHeight(sdl->font);
+    TTF_SizeUTF8(sdl->font, "0", &renderState.charWidth, NULL);
+    renderState.lowestVisibleLine = 0;
 
-    RenderText(jvs);
+    RenderBottomLine(editor, sdl, settings);
 
-    RenderCursor(jvs);
+    RenderText(editor, sdl, settings, &renderState);
+    
+    RenderCursor(editor, sdl, settings, &renderState);
 
-    SDL_RenderPresent(jvs->sdl.renderer);
+    SDL_RenderPresent(sdl->renderer);
 }
