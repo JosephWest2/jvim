@@ -23,4 +23,4 @@ void Editor_Init(EditorState *e, FILE *f);
 
 size_t Editor_LineLength(const EditorState *const e, int lineIndex);
 
-void Editor_MoveCursor(EditorState *e, Direction direction, int offset);
+void Editor_MoveCursor(EditorState *e, int offset);

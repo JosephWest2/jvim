@@ -7,82 +7,35 @@ size_t Editor_LineLength(const EditorState *const e, int lineIndex) {
     if ((int)e->text.gapIndex >= startIndex && e->text.gapIndex < endIndex) {
         d -= e->text.gapWidth;
     }
-    printf("start: %d end: %d gapIndex: %zu gapWidth: %d d: %d\n", startIndex, endIndex, e->text.gapIndex,  e->text.gapWidth, d);
+    printf("lineIndex: %d lineLength: %d\n", lineIndex, d);
     return d;
 }
 
-void Editor_MoveCursor(EditorState *e, Direction direction, int distance) {
+void Editor_MoveCursor(EditorState *e, int offset) {
 
-    if (direction == Right) {
+    if (offset > 0) {
 
-        const int prev = e->cursor.effectiveCol;
-        e->cursor.effectiveCol = MIN(Editor_LineLength(e, e->cursor.lineIndex) - 1, e->cursor.effectiveCol + distance);
-        e->cursor.preferredCol = e->cursor.effectiveCol;
-        const int offset = e->cursor.effectiveCol - prev;
-        e->cursor.index += offset;
+        const int prev = e->text.gapIndex;
 
-    } else if (direction == Left) {
+        e->text.gapIndex = MIN(e->text.contentLength - 1, prev + offset);
+        const int d = e->text.gapIndex - prev;
 
-        const int prev = e->cursor.effectiveCol;
-        e->cursor.effectiveCol = MAX(e->cursor.effectiveCol - distance, 0);
-        e->cursor.preferredCol = e->cursor.effectiveCol;
-        const int offset = e->cursor.effectiveCol - prev;
-        e->cursor.index += offset;
-
-    } else if (direction == Up) {
-
-        int offset = 0;
-        int i = e->cursor.lineIndex;
-        int min = MAX(0, i - distance);
-
-        if (i == min) {
-            return;
+        for (int i = 0; i < d; i++) {
+            e->text.buffer[prev + i] = e->text.buffer[prev + i + e->text.gapWidth];
+            e->text.buffer[prev + i + e->text.gapWidth] = 'G';
         }
 
-        while (i >= min) {
-            
-            if (i == e->cursor.lineIndex) {
-                offset += e->cursor.effectiveCol;
-            } else if (i == min) {
-                int length = Editor_LineLength(e, i);
-                e->cursor.effectiveCol = MIN(length - 1, e->cursor.preferredCol);
-                offset += length - e->cursor.effectiveCol; 
-            } else {
-                offset += Editor_LineLength(e, i);
-            }
+    } else if (offset < 0) {
 
-            i--;
+        const int prev = e->text.gapIndex;
+
+        e->text.gapIndex = MAX(0, prev + offset);
+        const int d = e->text.gapIndex - prev;
+
+        for (int i = 0; i > d; i--) {
+            e->text.buffer[prev + e->text.gapWidth + i - 1] = e->text.buffer[prev + i - 1];
+            e->text.buffer[prev + i - 1] = 'G';
         }
-
-        e->cursor.lineIndex = min;
-        e->cursor.index -= offset;
-
-    } else if (direction == Down) {
-
-        int offset = 0;
-        int i = e->cursor.lineIndex;
-        int max = MIN(e->newlineIndexes.contentLength - 1, i + distance);
-
-        if (i == max) {
-            return;
-        }
-
-        while (i <= max) {
-
-            if (i == e->cursor.lineIndex) {
-                offset += Editor_LineLength(e, i) - e->cursor.effectiveCol;
-            } else if (i == max) {
-                int length = Editor_LineLength(e, i);
-                e->cursor.effectiveCol = MIN(length - 1, e->cursor.preferredCol);
-                offset += e->cursor.effectiveCol;
-            } else {
-                offset += Editor_LineLength(e, i);
-            }
-
-            i++;
-        }
-        e->cursor.lineIndex = max;
-        e->cursor.index += offset;
     }
 }
 

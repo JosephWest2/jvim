@@ -99,7 +99,6 @@ int main(int argc, char **argv) {
         }
 
         Render(&editor, &sdl, &settings);
-
         SDL_Delay(16);
     }
 

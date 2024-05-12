@@ -14,7 +14,7 @@ static void _Grow(GapBuffer *gb) {
 static void _InitAppendToBuffer(GapBuffer *gb, char c) {
 
     gb->contentLength++;
-    if (gb->contentLength == gb->length) {
+    if (gb->contentLength >= gb->length) {
         _Grow(gb);
     }
     gb->buffer[gb->contentLength - 1] = c;
@@ -41,6 +41,13 @@ void GB_Init(GapBuffer *gb, FILE *file) {
     gb->gapWidth = DEFAULT_GAP_WIDTH;
     gb->gapIndex = 0;
     gb->contentLength = DEFAULT_GAP_WIDTH;
+
+    int i = 0;
+    while (i < DEFAULT_GAP_WIDTH) {
+        gb->buffer[i] = 'G';
+        i++;
+    }
+
     while (1) {
         char c = fgetc(file);
         if (feof(file)) {
@@ -55,33 +62,30 @@ void GB_Free(GapBuffer *gb) {
     gb = NULL;
 }
 
-void GB_MoveGap(GapBuffer *gb, const int distance, const Direction direction) {
-    const int prev = gb->gapIndex;
+void GB_MoveGap(GapBuffer *gb, const int offset) {
 
-    if (direction == Left) {
 
-        if (gb->gapIndex - distance > 0) {
-            gb->gapIndex -= distance;
-        } else {
-            gb->gapIndex = 0;
+    int prev = gb->gapIndex;
+    if (offset < 0) {
+
+        gb->gapIndex = MAX(0, prev + offset);
+
+        int d = gb->gapIndex - prev;
+
+        for (int i = 0; i > d; i--) {
+            gb->buffer[prev + i + gb->gapWidth - 1] = gb->buffer[prev + i - 1];
+            gb->buffer[prev + i - 1] = 'G';
         }
 
-    } else if (direction == Right) {
+    } else if (offset > 0) {
 
-        if (gb->gapIndex + distance < gb->length - gb->gapWidth) {
-            gb->gapIndex += distance;
-        } else {
-            gb->gapIndex = gb->length - gb->gapWidth;
+        gb->gapIndex = MIN(gb->contentLength - 1, prev + offset);
+        int d = gb->gapIndex - prev;
+
+        for (int i = 0; i < d; i++) {
+            gb->buffer[prev + i] = gb->buffer[prev + gb->gapWidth + i];
+            gb->buffer[prev + gb->gapWidth + i] = 'G';
         }
-    } else {
-        printf("Invalid Direction Input GB_MoveGap");
-        return;
-    }
-
-    int i = 0;
-    while (i < gb->gapWidth) {
-        gb->buffer[prev + i] = gb->buffer[gb->gapIndex + i];
-        i++;
     }
 }
 

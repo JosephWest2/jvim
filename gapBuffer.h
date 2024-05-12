@@ -15,7 +15,7 @@ void GB_Init(GapBuffer *gb, FILE *file);
 
 void GB_Free(GapBuffer *gb);
 
-void GB_MoveGap(GapBuffer *gb, const int distance, const Direction direction);
+void GB_MoveGap(GapBuffer *gb, const int offset);
 
 void GB_Insert(GapBuffer *gb, const char *const string, const int length);
 

@@ -27,82 +27,59 @@ static void RenderBottomLine(const EditorState *const editor, const SDLState *co
     SDL_RenderFillRect(sdl->renderer, &bottomBorder);
 }
 
-static void RenderText(const EditorState *const editor, const SDLState *const sdl, const UserSettings *const settings, RenderState *renderState) {
+static char *CreateRenderString(const EditorState *const editor, size_t iStart, size_t iEnd) {
 
-    int remainingHeight = sdl->h;
-    int lineCount = remainingHeight / renderState->lineHeight;
-    size_t iStart = renderState->lowestVisibleLine == 0 ? 0 : ALI_Get(&editor->newlineIndexes, renderState->lowestVisibleLine);
-    size_t iEnd;
-    if (lineCount + iStart >= editor->newlineIndexes.contentLength) {
-        iEnd = editor->text.contentLength - 1;
-    } else {
-        iEnd = ALI_Get(&editor->newlineIndexes, renderState->lowestVisibleLine + lineCount);
-    }
-    size_t renderLen = iEnd - iStart;
+    size_t len = CONTAINS_INCLUSIVE(iStart, iEnd - 1, editor->text.gapIndex) ? iEnd - iStart : iEnd - iStart - editor->text.gapWidth;
+    char *out = malloc(len + 1);
+    out[len] = '\0';
 
-    char *renderString;
-    if (editor->text.gapIndex >= iStart && editor->text.gapIndex < iEnd) {
-
-        renderLen -= editor->text.gapWidth;
-        renderString = malloc(renderLen + 1);
-        int iGap = editor->text.gapIndex;
-        int iGapBuffer = iStart;
-        int iRender = 0;
-        while (iGapBuffer < iGap) {
-            renderString[iRender] = editor->text.buffer[iGapBuffer];
-            iRender++;
-            iGapBuffer++;
-        }
-
-        iGapBuffer += editor->text.gapWidth;
-
-        while (iGapBuffer < iEnd) {
-            renderString[iRender] = editor->text.buffer[iGapBuffer];
-            iRender++;
-            iGapBuffer++;
-        }
-    } else {
-        renderString = malloc(renderLen + 1);
-        memcpy(renderString, editor->text.buffer + iStart, renderLen);
+    int iGap = editor->text.gapIndex;
+    int iGapBuffer = iStart;
+    int iOut = 0;
+    while (iGapBuffer < iGap) {
+        out[iOut] = editor->text.buffer[iGapBuffer];
+        iOut++;
+        iGapBuffer++;
     }
 
-    renderString[renderLen] = '\0';
-    for (size_t i = 0; i < renderLen; i++) {
-        if (renderString[i] == '\n') {
-            renderString[i] = '\0';
-        }
+    iGapBuffer += editor->text.gapWidth;
+
+    while (iGapBuffer < iEnd) {
+        out[iOut] = editor->text.buffer[iGapBuffer];
+        iOut++;
+        iGapBuffer++;
     }
 
-    int lineY = 0;
-    char *p2 = renderString;
-    int i = 0;
-    while (p2 < renderString + renderLen) {
+    return out;
+}
 
-        size_t len = strlen(p2);
-        if (len != 0) {
+static char *CreateRenderStringRaw(const EditorState *const editor, size_t iStart, size_t iEnd) {
 
-            SDL_Surface *ts = TTF_RenderUTF8_Blended(sdl->font, p2, settings->fontColor);
-            if (ts == NULL) {
-                break;
-            }
-            SDL_Texture *tt = SDL_CreateTextureFromSurface(sdl->renderer, ts);
+    size_t len = iEnd = iStart;
+    char *out = malloc(len + 1);
+    out[len] = '\0';
+    memcpy(out, editor->text.buffer + iStart, len);
+    return out;
+}
 
-            SDL_Rect r;
-            r.x = 0;
-            r.y = lineY;
-            r.h = ts->h;
-            r.w = ts->w;
+static void RenderText(char *s, SDLState *sdl, const UserSettings *const settings) {
 
-            SDL_RenderCopy(sdl->renderer, tt, NULL, &r);
-
-            SDL_FreeSurface(ts);
-            SDL_DestroyTexture(tt);
-        }
-        lineY += renderState->lineHeight;
-        p2 += len + 1;
+    SDL_Surface *ts = TTF_RenderUTF8_Blended_Wrapped(sdl->font, s, settings->fontColor, 0);
+    if (ts == NULL) {
+        return;
     }
+    SDL_Texture *tt = SDL_CreateTextureFromSurface(sdl->renderer, ts);
 
-    free(renderString);
+    SDL_Rect r;
+    r.x = 0;
+    r.y = 0;
+    r.h = ts->h;
+    r.w = ts->w;
+
+    SDL_RenderCopy(sdl->renderer, tt, NULL, &r);
+
+    SDL_FreeSurface(ts);
+    SDL_DestroyTexture(tt);
 }
 
 static void RenderCursor(const EditorState *const editor, SDLState *sdl, const UserSettings *const settings, RenderState *renderState) {
@@ -130,9 +107,21 @@ void Render(const EditorState *const editor, SDLState *sdl, const UserSettings *
 
     RenderBottomLine(editor, sdl, settings);
 
-    RenderText(editor, sdl, settings, &renderState);
-    
-    RenderCursor(editor, sdl, settings, &renderState);
+    size_t iStart = renderState.lowestVisibleLine == 0 ? 0 : ALI_Get(&editor->newlineIndexes, renderState.lowestVisibleLine);
+    size_t iEnd;
+    int remainingHeight = sdl->h - 2 * renderState.lineHeight;
+    int lineCount = remainingHeight / renderState.lineHeight;
+    if (lineCount + iStart >= editor->newlineIndexes.contentLength) {
+        iEnd = editor->text.contentLength - 1;
+    } else {
+        iEnd = ALI_Get(&editor->newlineIndexes, renderState.lowestVisibleLine + lineCount);
+    }
+
+    char * renderString = CreateRenderStringRaw(editor, iStart, iEnd);
+    renderString = editor->text.buffer;
+    RenderText(renderString, sdl, settings);
+
+    // RenderCursor(editor, sdl, settings, &renderState);
 
     SDL_RenderPresent(sdl->renderer);
 }

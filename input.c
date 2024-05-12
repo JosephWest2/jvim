@@ -7,25 +7,49 @@ static Mode mode = Normal;
 
 static void HandleKeyDown(SDL_Event *inputEvent, EditorState *editor) {
 
-    printf("%c\n", inputEvent->key.keysym.sym);
+    int s;
 
-    switch (inputEvent->key.keysym.sym) {
-    case SDLK_j:
-        printf("j");
-        Editor_MoveCursor(editor, Down, 1);
-        break;
-    case SDLK_k:
-        printf("k");
-        Editor_MoveCursor(editor, Up, 1);
-        break;
-    case SDLK_h:
-        printf("h");
-        Editor_MoveCursor(editor, Left, 1);
-        break;
-    case SDLK_l:
-        printf("l");
-        Editor_MoveCursor(editor, Right, 1);
-        break;
+    switch (mode) {
+
+    case Normal:
+        switch (inputEvent->key.keysym.sym) {
+        case SDLK_j:
+            s = editor->text.gapIndex + editor->text.gapWidth;
+            for (int i = s; i < editor->text.contentLength; i++) {
+                if (editor->text.buffer[i] == '\n') {
+                    printf("i: %d\n", i);
+                    Editor_MoveCursor(editor, i - s + 1);
+                    break;
+                }
+            }
+            break;
+        case SDLK_k:
+            s = editor->text.gapIndex;
+            for (int i = s; i >= 0; i--) {
+                if (editor->text.buffer[i] == '\n') {
+                    printf("i: %d\n", i);
+                    Editor_MoveCursor(editor, i - s);
+                    break;
+                }
+            }
+            break;
+        case SDLK_h:
+            Editor_MoveCursor(editor, -1);
+            break;
+        case SDLK_l:
+            Editor_MoveCursor(editor, 1);
+            break;
+        case SDLK_i:
+            mode = Insert;
+            break;
+        }
+
+    case Insert:
+        switch (inputEvent->key.keysym.sym) {
+        case SDLK_ESCAPE:
+            mode = Normal;
+            break;
+        }
     }
 }
 
@@ -33,16 +57,12 @@ static void HandleKeyUp(SDL_Event *inputEvent, EditorState *editorState) {
 
     switch (inputEvent->key.keysym.sym) {
     case SDLK_j:
-        printf("j");
         break;
     case SDLK_k:
-        printf("k");
         break;
     case SDLK_h:
-        printf("h");
         break;
     case SDLK_l:
-        printf("l");
         break;
     }
 }
